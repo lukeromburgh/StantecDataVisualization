@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
 from datetime import datetime
 import pandas as pd
 
@@ -22,24 +23,43 @@ class Rainfall(db.Model):
 
     def __repr__(self):
         return f"<Rainfall {self.datetimestamp}: {self.rainfall}>"
-
-def import_rainfall_data():
+    
+    
+    
+def import_excel():
     df = pd.read_excel("data/rainfall.xlsx", sheet_name="RG_A")
-    df = df.rename(columns={df.columns[0]: 'datetimestamp', df.columns[1]: 'rainfall'})
-    df['datetimestamp'] = pd.to_datetime(df['datetimestamp'])
+    df.columns = ["datetimestamp", "rainfall"]
+    df["datetimestamp"] = pd.to_datetime(df["datetimestamp"])
 
-    # Ensure app context is active when getting engine
     with app.app_context():
-        engine = db.get_engine()
-        df.to_sql('rainfall_guage_a', con=engine, if_exists='replace', index=False)
-    print("Rainfall data imported successfully!")
+        engine = db.engine
+        df.to_sql("rainfall_guage_a", engine, if_exists="replace", index=False)
+        print("Imported Excel to Database")
 
-# @app.route('/all-data')
-# def rainfall_data():
-#     data = Rainfall.query.order_by(Rainfall.datetimestamp).all()
-#     labels = [r.datetimestamp.strftime('%Y-%m-%d %H:%M:%S') for r in data]
-#     values = [r.rainfall for r in data]
-#     return jsonify({"labels": labels, "values": values})
+
+
+def load_dataframe(start=None, end=None):
+
+    query = Rainfall.query
+
+    if start:
+        query = query.filter(Rainfall.datetimestamp >= start)
+    if end:
+        query = query.filter(Rainfall.datetimestamp <= end)
+
+    records = query.order_by(Rainfall.datetimestamp).all()
+
+    df = pd.DataFrame([{
+        "datetimestamp": r.datetimestamp,
+        "rainfall": r.rainfall
+    } for r in records])
+
+    if df.empty:
+        return df
+
+    df["date"] = df["datetimestamp"].dt.date
+    return df
+
 
 @app.route('/rainfall-data')
 def rainfall_data():
