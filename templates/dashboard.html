@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rainfall Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.0/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0/dist/chartjs-adapter-luxon.min.js"></script>
+
+</head>
+<body>
+    <h2>Rainfall Dashboard</h2>
+    <canvas id="rainfallChart" width="800" height="400"></canvas>
+
+    <script>
+        async function fetchData() {
+            const response = await fetch('/rainfall-data');
+            const data = await response.json();
+            return data;
+        }
+
+        async function createChart() {
+            const data = await fetchData();
+
+            const ctx = document.getElementById('rainfallChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Rainfall (mm)',
+                        data: data.values,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        fill: true,
+                        tension: 0.2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'YYYY-MM-DD HH:mm'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Rainfall (mm)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        createChart();
+    </script>
+</body>
+</html>
