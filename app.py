@@ -28,7 +28,7 @@ def import_excel():
 def dashboard():
     return render_template("dashboard.html")
 
-@app.route("/rainfall-data-simple")
+@app.route("/rainfall-data")
 def rainfall_data_simple():
     rows = Rainfall.query.order_by(Rainfall.datetimestamp).all()
     if not rows:
@@ -46,7 +46,46 @@ def rainfall_data_simple():
         "values": values
     })
 
+@app.route("/rainfall-stats")
+def rainfall_stats():
+    rows = Rainfall.query.order_by(Rainfall.datetimestamp).all()
+    if not rows:
+        return jsonify({
+            "total_rainfall": 0,
+            "max_daily": 0,
+            "max_daily_date": None,
+            "avg_daily": 0,
+            "rainy_days": 0,
+            "dry_days": 0
+        })
+
+    df = pd.DataFrame([{"ts": r.datetimestamp, "rain": r.rainfall} for r in rows])
+    df["date"] = df["ts"].dt.date
+    daily = df.groupby("date")["rain"].sum().reset_index()
+
+    total_rainfall = float(daily["rain"].sum())
+
+    max_row = daily.loc[daily["rain"].idxmax()]
+    max_daily = float(max_row["rain"])
+    max_daily_date = str(max_row["date"])
+
+    avg_daily = float(daily["rain"].mean())
+
+    rainy_days = int((daily["rain"] > 0.2).sum())
+    dry_days = int((daily["rain"] <= 0.2).sum())
+
+    return jsonify({
+        "total_rainfall": total_rainfall,
+        "max_daily": max_daily,
+        "max_daily_date": max_daily_date,
+        "avg_daily": avg_daily,
+        "rainy_days": rainy_days,
+        "dry_days": dry_days
+    })
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
     app.run(debug=True)
+

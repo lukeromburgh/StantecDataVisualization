@@ -20,11 +20,37 @@
     <div class="bg-[#1a1b20] rounded-2xl p-6 shadow-xl border border-gray-700/40">
       <canvas id="rainChart" height="120"></canvas>
     </div>
+
+    <div id="metrics" class="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+  
+  <div class="bg-[#1a1b20] p-5 rounded-2xl border border-gray-700/40 shadow">
+    <p class="text-gray-400 text-sm">Total Rainfall</p>
+    <p id="m-total" class="text-2xl font-semibold mt-1">—</p>
+  </div>
+
+  <div class="bg-[#1a1b20] p-5 rounded-2xl border border-gray-700/40 shadow">
+    <p class="text-gray-400 text-sm">Max Daily Rainfall</p>
+    <p id="m-max" class="text-xl font-semibold mt-1">—</p>
+    <p id="m-max-date" class="text-gray-400 text-xs mt-1">—</p>
+  </div>
+
+  <div class="bg-[#1a1b20] p-5 rounded-2xl border border-gray-700/40 shadow">
+    <p class="text-gray-400 text-sm">Average Daily Rainfall</p>
+    <p id="m-avg" class="text-2xl font-semibold mt-1">—</p>
+  </div>
+
+  <div class="bg-[#1a1b20] p-5 rounded-2xl border border-gray-700/40 shadow">
+    <p class="text-gray-400 text-sm">Rainy vs Dry Days</p>
+    <p id="m-rainy" class="text-lg font-semibold mt-1">Rainy: —</p>
+    <p id="m-dry" class="text-lg font-semibold">Dry: —</p>
+  </div>
+
+</div>
   </div>
 
 <script>
 async function loadData() {
-  const res = await fetch("/rainfall-data-simple");
+  const res = await fetch("/rainfall-data");
   const data = await res.json();
   drawChart(data.labels, data.values);
 }
@@ -62,6 +88,22 @@ function drawChart(labels, values) {
     }
   });
 }
+
+async function loadStats() {
+  const res = await fetch("/rainfall-stats");
+  const s = await res.json();
+
+  document.getElementById("m-total").textContent = `${s.total_rainfall.toFixed(1)} mm`;
+  document.getElementById("m-max").textContent = `${s.max_daily.toFixed(1)} mm`;
+  document.getElementById("m-max-date").textContent = `(${s.max_daily_date})`;
+  document.getElementById("m-avg").textContent = `${s.avg_daily.toFixed(2)} mm`;
+  document.getElementById("m-rainy").textContent = `Rainy: ${s.rainy_days}`;
+  document.getElementById("m-dry").textContent = `Dry: ${s.dry_days}`;
+}
+
+
+  loadStats();
+
 
 loadData();
 </script>
