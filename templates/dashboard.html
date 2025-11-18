@@ -1,68 +1,70 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Rainfall Dashboard</title>
+  <meta charset="utf-8">
+  <title>Rainfall Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.0/build/global/luxon.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0/dist/chartjs-adapter-luxon.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <style>
+    body { background: #0f0f13; }
+  </style>
 </head>
-<body>
-    <h2>Rainfall Dashboard</h2>
-    <canvas id="rainfallChart" width="800" height="400"></canvas>
+<body class="min-h-screen text-gray-100 p-8">
 
-    <script>
-        async function fetchData() {
-            const response = await fetch('/rainfall-data');
-            const data = await response.json();
-            return data;
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-semibold mb-6">Rainfall Overview</h1>
+
+    <div class="bg-[#1a1b20] rounded-2xl p-6 shadow-xl border border-gray-700/40">
+      <canvas id="rainChart" height="120"></canvas>
+    </div>
+  </div>
+
+<script>
+async function loadData() {
+  const res = await fetch("/rainfall-data-simple");
+  const data = await res.json();
+  drawChart(data.labels, data.values);
+}
+
+function drawChart(labels, values) {
+  const ctx = document.getElementById("rainChart");
+
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Daily Rainfall (mm)",
+        data: values,
+        borderWidth: 2,
+        borderColor: "rgb(34,197,94)",
+        backgroundColor: "rgba(34,197,94,0.2)",
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }},
+      scales: {
+        x: {
+          ticks: { color: "#9ca3af" },
+          grid: { color: "rgba(255,255,255,0.05)" }
+        },
+        y: {
+          ticks: { color: "#9ca3af" },
+          grid: { color: "rgba(255,255,255,0.05)" }
         }
+      }
+    }
+  });
+}
 
-        async function createChart() {
-            const data = await fetchData();
+loadData();
+</script>
 
-            const ctx = document.getElementById('rainfallChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Rainfall (mm)',
-                        data: data.values,
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        fill: true,
-                        tension: 0.2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                tooltipFormat: 'YYYY-MM-DD HH:mm'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Rainfall (mm)'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        createChart();
-    </script>
 </body>
 </html>
