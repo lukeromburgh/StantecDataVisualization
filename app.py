@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
 import os
@@ -29,21 +29,32 @@ def dashboard():
     return render_template("dashboard.html")
 
 @app.route("/rainfall-data")
-def rainfall_data_simple():
+def rainfall_data():
+    mode = request.args.get("mode", "week").lower()  # default to week
     rows = Rainfall.query.order_by(Rainfall.datetimestamp).all()
     if not rows:
-        return jsonify({"labels": [], "values": []})
-    
-    df = pd.DataFrame([{"ts": r.datetimestamp, "rain": r.rainfall} for r in rows])
-    df["date"] = df["ts"].dt.date
-    daily = df.groupby("date")["rain"].sum().reset_index()
+        return jsonify({"labels": [], "values": [], "mode": mode})
 
-    labels = daily["date"].astype(str).tolist()
-    values = daily["rain"].astype(float).tolist()
+    df = pd.DataFrame([{"ts": r.datetimestamp, "rain": r.rainfall} for r in rows])
+    df["ts"] = pd.to_datetime(df["ts"])
+    df = df.set_index("ts")
+
+    if mode == "day":
+        res = df["rain"].resample("D").sum()
+        labels = res.index.strftime("%Y-%m-%d").tolist()
+    elif mode == "month":
+        res = df["rain"].resample("MS", label="left").sum()
+        labels = res.index.strftime("%Y-%m").tolist()
+    else:  # default: week
+        res = df["rain"].resample("W-MON", label="left", closed="left").sum()
+        labels = res.index.strftime("%Y-%m-%d").tolist()
+
+    values = res.fillna(0).astype(float).tolist()
 
     return jsonify({
         "labels": labels,
-        "values": values
+        "values": values,
+        "mode": mode
     })
 
 @app.route("/rainfall-stats")

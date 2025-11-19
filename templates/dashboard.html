@@ -17,6 +17,12 @@
   <div class="max-w-3xl mx-auto">
     <h1 class="text-3xl font-semibold mb-6">Rainfall Overview</h1>
 
+    <div class="flex gap-2 mb-4">
+      <button id="mode-day" class="px-3 py-1 rounded-md bg-transparent border border-gray-700 text-gray-200">Day</button>
+      <button id="mode-week" class="px-3 py-1 rounded-md bg-transparent border border-gray-700 text-gray-200">Week</button>
+      <button id="mode-month" class="px-3 py-1 rounded-md bg-transparent border border-gray-700 text-gray-200">Month</button>
+    </div>
+
     <div class="bg-[#1a1b20] rounded-2xl p-6 shadow-xl border border-gray-700/40">
       <canvas id="rainChart" height="120"></canvas>
     </div>
@@ -49,27 +55,33 @@
   </div>
 
 <script>
-async function loadData() {
-  const res = await fetch("/rainfall-data");
+async function loadData(mode = "week") {
+  const res = await fetch(`/rainfall-data?mode=${mode}`);
   const data = await res.json();
-  drawChart(data.labels, data.values);
+  drawChart(data.labels, data.values, data.mode);
+  setActiveMode(data.mode);
 }
 
 function drawChart(labels, values) {
   const ctx = document.getElementById("rainChart");
 
-  new Chart(ctx, {
+  if (window._rainChart) {
+    window._rainChart.destroy();
+  }
+
+  window._rainChart = new Chart(ctx, {
     type: "line",
     data: {
       labels,
       datasets: [{
-        label: "Daily Rainfall (mm)",
+        label: "Rainfall",
         data: values,
         borderWidth: 2,
         borderColor: "rgb(34,197,94)",
-        backgroundColor: "rgba(34,197,94,0.2)",
+        backgroundColor: "rgba(34,197,94,0.12)",
         tension: 0.3,
         fill: true,
+        pointRadius: 0
       }]
     },
     options: {
@@ -77,22 +89,40 @@ function drawChart(labels, values) {
       plugins: { legend: { display: false }},
       scales: {
         x: {
-          ticks: { color: "#9ca3af" },
-          grid: { color: "rgba(255,255,255,0.05)" }
+          ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true },
+          grid: { color: "rgba(255,255,255,0.03)" }
         },
         y: {
           ticks: { color: "#9ca3af" },
-          grid: { color: "rgba(255,255,255,0.05)" }
+          grid: { color: "rgba(255,255,255,0.03)" }
         }
       }
     }
   });
 }
 
+function setActiveMode(mode) {
+  const mapping = { day: "mode-day", week: "mode-week", month: "mode-month" };
+  Object.values(mapping).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove("bg-gray-700", "text-white", "font-semibold", "border-gray-600");
+    el.classList.add("bg-transparent", "border-gray-700/50", "text-gray-400");
+  });
+  const active = document.getElementById(mapping[mode] || "mode-week");
+  if (active) {
+    active.classList.remove("bg-transparent", "border-gray-700/50", "text-gray-400");
+    active.classList.add("bg-gray-700", "text-white", "font-semibold", "border-gray-600");
+  }
+}
+
+document.getElementById("mode-day").addEventListener("click", () => loadData("day"));
+document.getElementById("mode-week").addEventListener("click", () => loadData("week"));
+document.getElementById("mode-month").addEventListener("click", () => loadData("month"));
+
 async function loadStats() {
   const res = await fetch("/rainfall-stats");
   const s = await res.json();
-
   document.getElementById("m-total").textContent = `${s.total_rainfall.toFixed(1)} mm`;
   document.getElementById("m-max").textContent = `${s.max_daily.toFixed(1)} mm`;
   document.getElementById("m-max-date").textContent = `(${s.max_daily_date})`;
@@ -101,11 +131,8 @@ async function loadStats() {
   document.getElementById("m-dry").textContent = `Dry: ${s.dry_days}`;
 }
 
-
-  loadStats();
-
-
-loadData();
+loadStats();
+loadData("week");
 </script>
 
 </body>
