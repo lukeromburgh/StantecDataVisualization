@@ -3,10 +3,19 @@ from app import create_app, db
 from models import Rainfall
 
 def import_excel():
-    df = pd.read_excel("data/rainfall.xlsx", sheet_name="RG_A")
-    df.columns = ["datetimestamp", "rainfall"]
-    df["datetimestamp"] = pd.to_datetime(df["datetimestamp"])
-
+    try:
+        df = pd.read_excel("data/rainfall.xlsx", sheet_name="RG_A")
+    except:
+        print("Error reading Excel")
+        return 2
+    
+    try:
+        df.columns = ["datetimestamp", "rainfall"]
+        df["datetimestamp"] = pd.to_datetime(df["datetimestamp"])
+    except:
+        print("Error cleaning dataframe")
+        return 3
+    
     app = create_app()
     with app.app_context():
         engine = db.get_engine()
@@ -17,7 +26,7 @@ def import_excel():
                   if_exists="replace",
                   index=False)
 
-        print("Excel → Postgres import completed.")
+        print("Excel to Postgres import completed.")
 
 
 if __name__ == "__main__":

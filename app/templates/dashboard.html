@@ -10,6 +10,19 @@
 
   <style>
     body { background: #0f0f13; }
+
+    input[type="date"] {
+     color: #e5e7eb;
+     background-color: transparent;
+   }
+
+   input[type="date"]::-webkit-calendar-picker-indicator {
+     filter: invert(1) brightness(1.4) contrast(1);
+     opacity: 0.95;
+    cursor: pointer;
+   }
+   
+  input[type="date"]::-moz-focus-inner { border: 0; }
   </style>
 </head>
 <body class="min-h-screen text-gray-100 p-8">
@@ -17,11 +30,35 @@
   <div class="max-w-3xl mx-auto">
     <h1 class="text-3xl font-semibold mb-6">Rainfall Overview</h1>
 
-    <div class="flex gap-2 mb-4">
-      <button id="mode-day" class="px-3 py-1 rounded-md bg-transparent border border-gray-700 text-gray-200">Day</button>
-      <button id="mode-week" class="px-3 py-1 rounded-md bg-transparent border border-gray-700 text-gray-200">Week</button>
-      <button id="mode-month" class="px-3 py-1 rounded-md bg-transparent border border-gray-700 text-gray-200">Month</button>
+   <div class="mb-4">
+  <!-- container: column on mobile, row on sm+ -->
+  <div class="flex flex-col sm:flex-row gap-3 items-stretch">
+    <!-- mode buttons: full-width on mobile, inline on sm+ -->
+    <div class="flex gap-2 sm:gap-3 w-full sm:w-auto" role="tablist" aria-label="Aggregation mode">
+      <button id="mode-day" class="w-full sm:w-auto text-sm px-3 py-2 rounded-md bg-transparent border border-gray-700 text-gray-200">Day</button>
+      <button id="mode-week" class="w-full sm:w-auto text-sm px-3 py-2 rounded-md bg-transparent border border-gray-700 text-gray-200">Week</button>
+      <button id="mode-month" class="w-full sm:w-auto text-sm px-3 py-2 rounded-md bg-transparent border border-gray-700 text-gray-200">Month</button>
     </div>
+
+    <!-- date filters: stack vertically on mobile, inline on sm+; inputs expand on mobile -->
+    <div class="ml-0 sm:ml-auto flex flex-col sm:flex-row gap-2 items-stretch w-full sm:w-auto">
+      <div class="flex items-center gap-2">
+        <label for="start" class="text-sm text-gray-400 hidden sm:inline">From</label>
+        <input id="start" type="date" class="w-full sm:w-40 rounded-md bg-[#0f0f13] border border-gray-700 text-gray-200 p-2 text-sm" />
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label for="end" class="text-sm text-gray-400 hidden sm:inline">To</label>
+        <input id="end" type="date" class="w-full sm:w-40 rounded-md bg-[#0f0f13] border border-gray-700 text-gray-200 p-2 text-sm" />
+      </div>
+
+      <div class="flex gap-2 items-center w-full sm:w-auto">
+        <button id="apply-range" class="flex-1 sm:flex-none px-3 py-2 rounded-md bg-gray-700/30 text-gray-100 text-sm">Apply</button>
+        <button id="clear-range" class="flex-1 sm:flex-none px-3 py-2 rounded-md bg-transparent border border-gray-700 text-gray-200 text-sm">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
 
     <div class="bg-[#1a1b20] rounded-2xl p-6 shadow-xl border border-gray-700/40">
       <canvas id="rainChart" height="120"></canvas>
@@ -55,11 +92,51 @@
   </div>
 
 <script>
-async function loadData(mode = "week") {
-  const res = await fetch(`/rainfall-data?mode=${mode}`);
-  const data = await res.json();
-  drawChart(data.labels, data.values, data.mode);
-  setActiveMode(data.mode);
+function _getEl(id) {
+  return document.getElementById(id) || null;
+}
+
+async function loadData(mode = "week", start = null, end = null) {
+  window._mode = mode;
+  const loadingEl = _getEl("loading");
+  const errorEl = _getEl("error");
+
+  if (loadingEl) loadingEl.classList.remove("hidden");
+  if (errorEl) { errorEl.classList.add("hidden"); errorEl.textContent = ""; }
+
+  try {
+    let url = `/rainfall-data?mode=${encodeURIComponent(mode)}`;
+    if (start) url += `&start=${encodeURIComponent(start)}`;
+    if (end) url += `&end=${encodeURIComponent(end)}`;
+
+    const res = await fetch(url, { credentials: "same-origin" });
+
+    if (!res.ok) {
+      // surface friendly message for 403 and other statuses
+      const msg = res.status === 403
+        ? "Access denied (403). Check server auth/CORS or endpoint permissions."
+        : `Server returned ${res.status}`;
+      if (errorEl) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove("hidden");
+      } else {
+        console.error(msg);
+      }
+      return;
+    }
+
+    const data = await res.json();
+    drawChart(data.labels || [], data.values || []);
+    setActiveMode(data.mode || mode);
+  } catch (err) {
+    console.error("Failed to load rainfall data", err);
+    if (errorEl) {
+      errorEl.textContent = "Unable to load data. Check server logs.";
+      errorEl.classList.remove("hidden");
+    }
+  } finally {
+    if (loadingEl) loadingEl.classList.add("hidden");
+  }
 }
 
 function drawChart(labels, values) {
@@ -88,13 +165,36 @@ function drawChart(labels, values) {
       responsive: true,
       plugins: { legend: { display: false }},
       scales: {
-        x: {
-          ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true },
-          grid: { color: "rgba(255,255,255,0.03)" }
-        },
-        y: {
-          ticks: { color: "#9ca3af" },
-          grid: { color: "rgba(255,255,255,0.03)" }
+        x: { ticks: { color: "#9ca3af", maxRotation: 0, autoSkip: true }, grid: { color: "rgba(255,255,255,0.03)" }},
+        y: { ticks: { color: "#9ca3af" }, grid: { color: "rgba(255,255,255,0.03)" }}
+      },
+      onClick: function(evt, elems) {
+        if (!elems.length) return;
+        const idx = elems[0].index;
+        const label = this.data.labels[idx];
+        // drill: week -> show days for that week; month -> show month days; day -> no-op
+        if (window._mode === "week") {
+          // label is YYYY-MM-DD (week start). drill to day range: start -> +7 days
+          const start = new Date(label);
+          const end = new Date(start);
+          end.setDate(start.getDate() + 7);
+          const startISO = start.toISOString().slice(0,10);
+          const endISO = end.toISOString().slice(0,10);
+          // set date inputs to reflect drill and load day data
+          document.getElementById("start").value = startISO;
+          document.getElementById("end").value = endISO;
+          loadData("day", startISO, endISO);
+        } else if (window._mode === "month") {
+          // label is YYYY-MM, drill to that month (first -> next month)
+          const [y, m] = label.split("-");
+          const start = new Date(Number(y), Number(m)-1, 1);
+          const end = new Date(start);
+          end.setMonth(start.getMonth() + 1);
+          const startISO = start.toISOString().slice(0,10);
+          const endISO = end.toISOString().slice(0,10);
+          document.getElementById("start").value = startISO;
+          document.getElementById("end").value = endISO;
+          loadData("day", startISO, endISO);
         }
       }
     }
@@ -119,6 +219,17 @@ function setActiveMode(mode) {
 document.getElementById("mode-day").addEventListener("click", () => loadData("day"));
 document.getElementById("mode-week").addEventListener("click", () => loadData("week"));
 document.getElementById("mode-month").addEventListener("click", () => loadData("month"));
+
+document.getElementById("apply-range").addEventListener("click", () => {
+  const start = document.getElementById("start").value || null;
+  const end = document.getElementById("end").value || null;
+  loadData(window._mode || "week", start, end);
+});
+document.getElementById("clear-range").addEventListener("click", () => {
+  document.getElementById("start").value = "";
+  document.getElementById("end").value = "";
+  loadData(window._mode || "week", null, null);
+});
 
 async function loadStats() {
   const res = await fetch("/rainfall-stats");
