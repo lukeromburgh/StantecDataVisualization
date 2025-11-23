@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from services.rainfall_service import get_aggregated_rainfall, get_rainfall_stats
+from ..services.rainfall_service import get_aggregated_rainfall, get_rainfall_stats
 
 api_bp = Blueprint("api", __name__)
 
